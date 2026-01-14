@@ -2,79 +2,48 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <title>Calculadora Percentual</title>
+  <title>App Teste Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#020617">
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
   <style>
     body {
+      background:#020617;
+      color:#fff;
       font-family: Arial, sans-serif;
-      background: #020617;
-      color: #fff;
-      margin: 0;
-      padding: 0;
+      margin:0;
+      padding:20px;
     }
-
-    .container {
-      padding: 20px;
-    }
-
     input, button {
-      width: 100%;
-      padding: 12px;
-      margin: 8px 0;
-      border-radius: 6px;
-      border: none;
-      font-size: 16px;
+      width:100%;
+      padding:12px;
+      margin:8px 0;
+      border-radius:6px;
+      border:none;
+      font-size:16px;
     }
-
-    button {
-      background: #2563eb;
-      color: #fff;
-      font-weight: bold;
-    }
-
-    button.google {
-      background: #db4437;
-    }
-
-    #app {
-      display: none;
-    }
+    button { background:#22c55e; font-weight:bold; }
+    #app { display:none; }
   </style>
 </head>
 
 <body>
 
-<!-- LOGIN -->
-<div id="login" class="container">
-  <h2>Entrar</h2>
-
-  <input id="email" type="email" placeholder="Email">
+<div id="login">
+  <h2>Login</h2>
+  <input id="email" placeholder="Email">
   <input id="senha" type="password" placeholder="Senha">
-
   <button onclick="loginEmail()">Entrar</button>
-  <button onclick="registrar()">Criar conta</button>
-  <button class="google" onclick="loginGoogle()">Entrar com Google</button>
+  <button onclick="criarConta()">Criar conta</button>
+  <button onclick="loginGoogle()">Entrar com Google</button>
 </div>
 
-<!-- APP -->
-<div id="app" class="container">
-  <h2>App</h2>
-  <p>Login realizado com sucesso ✅</p>
-
-  <!-- A calculadora e operações vão entrar aqui depois -->
-
+<div id="app">
+  <h2>APP</h2>
+  <p>Você está logado ✅</p>
   <button onclick="logout()">Sair</button>
 </div>
 
-<!-- FIREBASE -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
   import {
@@ -103,25 +72,23 @@
 
   window.loginGoogle = () => {
     const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider)
-      .catch(e => alert(e.message));
+    signInWithPopup(auth, provider);
   };
 
   window.loginEmail = () => {
-    signInWithEmailAndPassword(auth, email.value, senha.value)
-      .catch(e => alert(e.message));
+    signInWithEmailAndPassword(auth, email.value, senha.value);
   };
 
-  window.registrar = () => {
-    createUserWithEmailAndPassword(auth, email.value, senha.value)
-      .catch(e => alert(e.message));
+  window.criarConta = () => {
+    createUserWithEmailAndPassword(auth, email.value, senha.value);
   };
 
   window.logout = () => {
     signOut(auth);
   };
 
-  onAuthStateChanged(auth, user => {
+  // ⭐ ISSO É O QUE ESTAVA FALTANDO ⭐
+  onAuthStateChanged(auth, (user) => {
     if (user) {
       loginDiv.style.display = "none";
       appDiv.style.display = "block";
@@ -134,3 +101,4 @@
 
 </body>
 </html>
+
