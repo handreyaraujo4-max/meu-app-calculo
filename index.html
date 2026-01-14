@@ -95,6 +95,7 @@ canvas{margin-top:20px;}
   text-align:center;
   font-size:18px;
   font-weight:700;
+  white-space:pre-line;
 }
 </style>
 </head>
@@ -117,7 +118,7 @@ canvas{margin-top:20px;}
     <input id="quantidade" type="number" placeholder="Quantidade de contas">
     <button onclick="executar()">Executar</button>
 
-    <!-- AQUI SÓ APARECE O RESULTADO FINAL -->
+    <!-- Aqui só aparece o resultado final -->
     <div id="preview" class="resultado-final"></div>
   </div>
 </div>
@@ -152,6 +153,12 @@ let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
 let grafico;
 let tipoGrafico = "pie";
 
+/* ---------- ELEMENTOS RESUMO ---------- */
+const hojeEl = document.getElementById("hoje");
+const semanaEl = document.getElementById("semana");
+const mesEl = document.getElementById("mes");
+const qtdEl = document.getElementById("qtd");
+
 /* ---------- CONTROLE DE ABAS ---------- */
 function abrirTab(e,id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -159,17 +166,25 @@ function abrirTab(e,id){
   document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
   document.getElementById(id).classList.remove("hidden");
 }
+function irParaOperacoes(){
+  // ativa tab 2 (Operações)
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  document.querySelectorAll(".tab")[1].classList.add("active");
+
+  document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
+  document.getElementById("ops").classList.remove("hidden");
+}
 
 /* ---------- SALVAR ---------- */
 function salvar(){
-  localStorage.setItem("operacoes",JSON.stringify(operacoes));
+  localStorage.setItem("operacoes", JSON.stringify(operacoes));
 }
 
-/* ---------- EXECUTAR CÁLCULO ---------- */
+/* ---------- EXECUTAR ---------- */
 function executar(){
-  let v = +valor.value;
-  let p = +percentual.value;
-  let q = +quantidade.value;
+  let v = +document.getElementById("valor").value;
+  let p = +document.getElementById("percentual").value;
+  let q = +document.getElementById("quantidade").value;
 
   if(!v || !p || !q){
     alert("Preencha todos os campos");
@@ -178,7 +193,7 @@ function executar(){
 
   let totalAtual = v;
 
-  for(let i = 0; i < q; i++){
+  for(let i=0;i<q;i++){
     let ganho = totalAtual * p / 100;
     let total = totalAtual + ganho;
 
@@ -194,15 +209,20 @@ function executar(){
     totalAtual = total;
   }
 
-  // CALCULADORA MOSTRA APENAS O RESULTADO FINAL
-  preview.innerText = "Resultado final: " + totalAtual.toFixed(2);
+  // Calculadora limpa: apenas resultado final
+  document.getElementById("preview").innerText =
+    "Resultado final:\n" + totalAtual.toFixed(2);
 
   salvar();
   renderizar();
+
+  // ✅ Mostra automaticamente a aba Operações
+  irParaOperacoes();
 }
 
-/* ---------- RENDERIZAR OPERAÇÕES E RESUMO ---------- */
+/* ---------- RENDER ---------- */
 function renderizar(){
+  const lista = document.getElementById("lista");
   lista.innerHTML = "";
 
   let hoje = 0, semana = 0, mes = 0, concluidas = 0;
@@ -214,8 +234,8 @@ function renderizar(){
     if(op.ok){
       concluidas++;
       hoje += op.ganho;
-      if((agora - d) / 86400000 <= 7) semana += op.ganho;
-      if(agora.getMonth() === d.getMonth()) mes += op.ganho;
+      if((agora - d)/86400000 <= 7) semana += op.ganho;
+      if(agora.getMonth() === d.getMonth() && agora.getFullYear() === d.getFullYear()) mes += op.ganho;
     }
 
     let div = document.createElement("div");
@@ -246,47 +266,42 @@ function renderizar(){
 /* ---------- AÇÕES ---------- */
 function toggle(i){
   operacoes[i].ok = !operacoes[i].ok;
-  salvar();
-  renderizar();
+  salvar(); renderizar();
 }
 function excluir(i){
   if(confirm("Excluir operação?")){
     operacoes.splice(i,1);
-    salvar();
-    renderizar();
+    salvar(); renderizar();
   }
 }
 function editar(i){
   let novo = prompt("Novo percentual:", operacoes[i].perc);
   if(!novo) return;
+
   operacoes[i].perc = +novo;
-  operacoes[i].ganho = operacoes[i].base * novo / 100;
+  operacoes[i].ganho = operacoes[i].base * (+novo) / 100;
   operacoes[i].total = operacoes[i].base + operacoes[i].ganho;
-  salvar();
-  renderizar();
+
+  salvar(); renderizar();
 }
 
 /* ---------- GRÁFICO ---------- */
 function atualizarGrafico(h,s,m,c){
+  const canvas = document.getElementById("grafico");
   if(grafico) grafico.destroy();
-  grafico = new Chart(document.getElementById("grafico"),{
+
+  grafico = new Chart(canvas, {
     type: tipoGrafico,
-    data:{
-      labels:["Hoje","Semana","Mês","Concluídas"],
-      datasets:[{data:[h,s,m,c]}]
+    data: {
+      labels: ["Hoje", "Semana", "Mês", "Concluídas"],
+      datasets: [{ data: [h, s, m, c] }]
     }
   });
 }
 function alternarGrafico(){
-  tipoGrafico = tipoGrafico === "pie" ? "bar" : "pie";
+  tipoGrafico = (tipoGrafico === "pie") ? "bar" : "pie";
   renderizar();
 }
-
-/* ---------- MAPEAR ELEMENTOS ---------- */
-const hojeEl = document.getElementById("hoje");
-const semanaEl = document.getElementById("semana");
-const mesEl = document.getElementById("mes");
-const qtdEl = document.getElementById("qtd");
 
 /* ---------- INICIAL ---------- */
 renderizar();
