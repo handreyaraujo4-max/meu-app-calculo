@@ -1,319 +1,388 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculadora Percentual Progressiva</title>
-<!-- PWA -->
-  <link rel="manifest" href="./manifest.json">
-<meta name="theme-color" content="#020617">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-:root{
-  --bg:#0b0f14;
-  --card:#161b22;
-  --input:#1e252e;
-  --primary:#2563eb;
-  --danger:#dc2626;
-  --text:#ffffff;
-  --muted:#94a3b8;
-}
-body{
-  margin:0;
-  font-family:system-ui, Arial;
-  background:var(--bg);
-  color:var(--text);
-}
-.tabs{
-  display:flex;
-  background:#020617;
-}
-.tab{
-  flex:1;
-  padding:14px;
-  text-align:center;
-  cursor:pointer;
-  font-weight:600;
-  color:var(--muted);
-}
-.tab.active{
-  color:#fff;
-  border-bottom:3px solid var(--primary);
-}
-.container{
-  max-width:520px;
-  margin:auto;
-  padding:16px;
-}
-.card{
-  background:var(--card);
-  padding:16px;
-  border-radius:14px;
-  margin-top:16px;
-}
-input,button{
-  width:100%;
-  padding:14px;
-  margin-top:10px;
-  border-radius:10px;
-  border:none;
-  font-size:15px;
-}
-input{background:var(--input);color:#fff;}
-button{background:var(--primary);color:#fff;font-weight:600;}
-.operacao{
-  background:var(--input);
-  padding:14px;
-  border-radius:12px;
-  margin-top:12px;
-}
-.operacao small{color:var(--muted);}
-.actions{
-  display:flex;
-  gap:8px;
-  margin-top:10px;
-}
-.actions .del{background:var(--danger);}
-.stats{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:12px;
-}
-.stat{
-  background:var(--input);
-  padding:12px;
-  border-radius:10px;
-  text-align:center;
-}
-.hidden{display:none;}
-canvas{margin-top:20px;}
-.toggle{
-  margin-top:10px;
-  background:#334155;
-}
-.resultado-final{
-  margin-top:14px;
-  text-align:center;
-  font-size:18px;
-  font-weight:700;
-  white-space:pre-line;
-}
-</style>
-</head>
-
-<body>
-
-<div class="tabs">
-  <div class="tab active" onclick="abrirTab(event,'calc')">🧮 Calculadora</div>
-  <div class="tab" onclick="abrirTab(event,'ops')">📋 Operações</div>
-  <div class="tab" onclick="abrirTab(event,'resumo')">📊 Resumo</div>
-</div>
-
-<div class="container">
-
-<!-- CALCULADORA -->
-<div id="calc" class="tabContent">
-  <div class="card">
-    <input id="valor" type="number" placeholder="Valor base (ex: 50)">
-    <input id="percentual" type="number" placeholder="Percentual (%) ex: 40">
-    <input id="quantidade" type="number" placeholder="Quantidade de contas">
-    <button onclick="executar()">Executar</button>
-
-    <!-- Aqui só aparece o resultado final -->
-    <div id="preview" class="resultado-final"></div>
-  </div>
-</div>
-
-<!-- OPERAÇÕES -->
-<div id="ops" class="tabContent hidden">
-  <div class="card">
-    <h3>Operações</h3>
-    <div id="lista"></div>
-  </div>
-</div>
-
-<!-- RESUMO -->
-<div id="resumo" class="tabContent hidden">
-  <div class="card">
-    <div class="stats">
-      <div class="stat"><strong>Hoje</strong><div id="hoje">0</div></div>
-      <div class="stat"><strong>Semana</strong><div id="semana">0</div></div>
-      <div class="stat"><strong>Mês</strong><div id="mes">0</div></div>
-      <div class="stat"><strong>Concluídas</strong><div id="qtd">0</div></div>
-    </div>
-
-    <button class="toggle" onclick="alternarGrafico()">Alternar Pizza / Barras</button>
-    <canvas id="grafico"></canvas>
-  </div>
-</div>
-
-</div>
-
-<script>
-let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
-let grafico;
-let tipoGrafico = "pie";
-
-/* ---------- ELEMENTOS RESUMO ---------- */
-const hojeEl = document.getElementById("hoje");
-const semanaEl = document.getElementById("semana");
-const mesEl = document.getElementById("mes");
-const qtdEl = document.getElementById("qtd");
-
-/* ---------- CONTROLE DE ABAS ---------- */
-function abrirTab(e,id){
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  e.target.classList.add("active");
-  document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-}
-function irParaOperacoes(){
-  // ativa tab 2 (Operações)
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  document.querySelectorAll(".tab")[1].classList.add("active");
-
-  document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
-  document.getElementById("ops").classList.remove("hidden");
-}
-
-/* ---------- SALVAR ---------- */
-function salvar(){
-  localStorage.setItem("operacoes", JSON.stringify(operacoes));
-}
-
-/* ---------- EXECUTAR ---------- */
-function executar(){
-  let v = +document.getElementById("valor").value;
-  let p = +document.getElementById("percentual").value;
-  let q = +document.getElementById("quantidade").value;
-
-  if(!v || !p || !q){
-    alert("Preencha todos os campos");
-    return;
-  }
-
-  let totalAtual = v;
-
-  for(let i=0;i<q;i++){
-    let ganho = totalAtual * p / 100;
-    let total = totalAtual + ganho;
-
-    operacoes.push({
-      base: totalAtual,
-      perc: p,
-      ganho: ganho,
-      total: total,
-      data: new Date().toISOString(),
-      ok: false
-    });
-
-    totalAtual = total;
-  }
-
-  // Calculadora limpa: apenas resultado final
-  document.getElementById("preview").innerText =
-    "Resultado final:\n" + totalAtual.toFixed(2);
-
-  salvar();
-  renderizar();
-
-  // ✅ Mostra automaticamente a aba Operações
-  irParaOperacoes();
-}
-
-/* ---------- RENDER ---------- */
-function renderizar(){
-  const lista = document.getElementById("lista");
-  lista.innerHTML = "";
-
-  let hoje = 0, semana = 0, mes = 0, concluidas = 0;
-  let agora = new Date();
-
-  operacoes.forEach((op,i)=>{
-    let d = new Date(op.data);
-
-    if(op.ok){
-      concluidas++;
-      hoje += op.ganho;
-      if((agora - d)/86400000 <= 7) semana += op.ganho;
-      if(agora.getMonth() === d.getMonth() && agora.getFullYear() === d.getFullYear()) mes += op.ganho;
-    }
-
-    let div = document.createElement("div");
-    div.className = "operacao";
-    div.innerHTML = `
-      <strong>${op.perc}% de ${op.base.toFixed(2)} = ${op.ganho.toFixed(2)}</strong><br>
-      <small>Total: ${op.total.toFixed(2)}</small><br>
-      <label>
-        <input type="checkbox" ${op.ok ? "checked" : ""} onchange="toggle(${i})">
-        Concluída
-      </label>
-      <div class="actions">
-        <button onclick="editar(${i})">Editar</button>
-        <button class="del" onclick="excluir(${i})">Excluir</button>
-      </div>
-    `;
-    lista.appendChild(div);
-  });
-
-  hojeEl.textContent = hoje.toFixed(2);
-  semanaEl.textContent = semana.toFixed(2);
-  mesEl.textContent = mes.toFixed(2);
-  qtdEl.textContent = concluidas;
-
-  atualizarGrafico(hoje, semana, mes, concluidas);
-}
-
-/* ---------- AÇÕES ---------- */
-function toggle(i){
-  operacoes[i].ok = !operacoes[i].ok;
-  salvar(); renderizar();
-}
-function excluir(i){
-  if(confirm("Excluir operação?")){
-    operacoes.splice(i,1);
-    salvar(); renderizar();
-  }
-}
-function editar(i){
-  let novo = prompt("Novo percentual:", operacoes[i].perc);
-  if(!novo) return;
-
-  operacoes[i].perc = +novo;
-  operacoes[i].ganho = operacoes[i].base * (+novo) / 100;
-  operacoes[i].total = operacoes[i].base + operacoes[i].ganho;
-
-  salvar(); renderizar();
-}
-
-/* ---------- GRÁFICO ---------- */
-function atualizarGrafico(h,s,m,c){
-  const canvas = document.getElementById("grafico");
-  if(grafico) grafico.destroy();
-
-  grafico = new Chart(canvas, {
-    type: tipoGrafico,
-    data: {
-      labels: ["Hoje", "Semana", "Mês", "Concluídas"],
-      datasets: [{ data: [h, s, m, c] }]
-    }
-  });
-}
-function alternarGrafico(){
-  tipoGrafico = (tipoGrafico === "pie") ? "bar" : "pie";
-  renderizar();
-}
-
-/* ---------- INICIAL ---------- */
-renderizar();
-</script>
- <script>
-if ("serviceWorker" in navigator) {
-  navigator.serviceWorker.register("./service-worker.js");
-}
- </script>
-
-</body>
-</html>
+diff --git a/index.html b/index.html
+index fdf97b45006948dca99ec5e177f4b81e0dff569f..079965460a3be9efcc79a7af115e903f47ed44ef 100644
+--- a/index.html
++++ b/index.html
+@@ -1,319 +1,78 @@
+ <!DOCTYPE html>
+ <html lang="pt-BR">
+ <head>
+-<meta charset="UTF-8">
+-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+-<title>Calculadora Percentual Progressiva</title>
+-<!-- PWA -->
++  <meta charset="UTF-8">
++  <meta name="viewport" content="width=device-width, initial-scale=1.0">
++  <title>Calculadora Percentual Progressiva</title>
++  <meta name="description" content="Simule operações percentuais progressivas, acompanhe resultados e visualize o resumo em gráficos.">
+   <link rel="manifest" href="./manifest.json">
+-<meta name="theme-color" content="#020617">
+-
+-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+-
+-<style>
+-:root{
+-  --bg:#0b0f14;
+-  --card:#161b22;
+-  --input:#1e252e;
+-  --primary:#2563eb;
+-  --danger:#dc2626;
+-  --text:#ffffff;
+-  --muted:#94a3b8;
+-}
+-body{
+-  margin:0;
+-  font-family:system-ui, Arial;
+-  background:var(--bg);
+-  color:var(--text);
+-}
+-.tabs{
+-  display:flex;
+-  background:#020617;
+-}
+-.tab{
+-  flex:1;
+-  padding:14px;
+-  text-align:center;
+-  cursor:pointer;
+-  font-weight:600;
+-  color:var(--muted);
+-}
+-.tab.active{
+-  color:#fff;
+-  border-bottom:3px solid var(--primary);
+-}
+-.container{
+-  max-width:520px;
+-  margin:auto;
+-  padding:16px;
+-}
+-.card{
+-  background:var(--card);
+-  padding:16px;
+-  border-radius:14px;
+-  margin-top:16px;
+-}
+-input,button{
+-  width:100%;
+-  padding:14px;
+-  margin-top:10px;
+-  border-radius:10px;
+-  border:none;
+-  font-size:15px;
+-}
+-input{background:var(--input);color:#fff;}
+-button{background:var(--primary);color:#fff;font-weight:600;}
+-.operacao{
+-  background:var(--input);
+-  padding:14px;
+-  border-radius:12px;
+-  margin-top:12px;
+-}
+-.operacao small{color:var(--muted);}
+-.actions{
+-  display:flex;
+-  gap:8px;
+-  margin-top:10px;
+-}
+-.actions .del{background:var(--danger);}
+-.stats{
+-  display:grid;
+-  grid-template-columns:1fr 1fr;
+-  gap:12px;
+-}
+-.stat{
+-  background:var(--input);
+-  padding:12px;
+-  border-radius:10px;
+-  text-align:center;
+-}
+-.hidden{display:none;}
+-canvas{margin-top:20px;}
+-.toggle{
+-  margin-top:10px;
+-  background:#334155;
+-}
+-.resultado-final{
+-  margin-top:14px;
+-  text-align:center;
+-  font-size:18px;
+-  font-weight:700;
+-  white-space:pre-line;
+-}
+-</style>
++  <meta name="theme-color" content="#020617">
++  <link rel="icon" href="./icon-192.jpg" sizes="192x192">
++  <link rel="stylesheet" href="./style.css">
++  <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
++  <script src="./script.js" defer></script>
+ </head>
+ 
+ <body>
+-
+-<div class="tabs">
+-  <div class="tab active" onclick="abrirTab(event,'calc')">🧮 Calculadora</div>
+-  <div class="tab" onclick="abrirTab(event,'ops')">📋 Operações</div>
+-  <div class="tab" onclick="abrirTab(event,'resumo')">📊 Resumo</div>
+-</div>
+-
+-<div class="container">
+-
+-<!-- CALCULADORA -->
+-<div id="calc" class="tabContent">
+-  <div class="card">
+-    <input id="valor" type="number" placeholder="Valor base (ex: 50)">
+-    <input id="percentual" type="number" placeholder="Percentual (%) ex: 40">
+-    <input id="quantidade" type="number" placeholder="Quantidade de contas">
+-    <button onclick="executar()">Executar</button>
+-
+-    <!-- Aqui só aparece o resultado final -->
+-    <div id="preview" class="resultado-final"></div>
+-  </div>
+-</div>
+-
+-<!-- OPERAÇÕES -->
+-<div id="ops" class="tabContent hidden">
+-  <div class="card">
+-    <h3>Operações</h3>
+-    <div id="lista"></div>
+-  </div>
+-</div>
+-
+-<!-- RESUMO -->
+-<div id="resumo" class="tabContent hidden">
+-  <div class="card">
+-    <div class="stats">
+-      <div class="stat"><strong>Hoje</strong><div id="hoje">0</div></div>
+-      <div class="stat"><strong>Semana</strong><div id="semana">0</div></div>
+-      <div class="stat"><strong>Mês</strong><div id="mes">0</div></div>
+-      <div class="stat"><strong>Concluídas</strong><div id="qtd">0</div></div>
+-    </div>
+-
+-    <button class="toggle" onclick="alternarGrafico()">Alternar Pizza / Barras</button>
+-    <canvas id="grafico"></canvas>
++  <header>
++    <h1>Calculadora Percentual Progressiva</h1>
++    <p>Controle seus cálculos em etapas, organize operações e visualize resultados com clareza.</p>
++  </header>
++
++  <div class="tabs">
++    <div class="tab active" onclick="abrirTab(event,'calc')">🧮 Calculadora</div>
++    <div class="tab" onclick="abrirTab(event,'ops')">📋 Operações</div>
++    <div class="tab" onclick="abrirTab(event,'resumo')">📊 Resumo</div>
+   </div>
+-</div>
+-
+-</div>
+-
+-<script>
+-let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
+-let grafico;
+-let tipoGrafico = "pie";
+-
+-/* ---------- ELEMENTOS RESUMO ---------- */
+-const hojeEl = document.getElementById("hoje");
+-const semanaEl = document.getElementById("semana");
+-const mesEl = document.getElementById("mes");
+-const qtdEl = document.getElementById("qtd");
+-
+-/* ---------- CONTROLE DE ABAS ---------- */
+-function abrirTab(e,id){
+-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+-  e.target.classList.add("active");
+-  document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
+-  document.getElementById(id).classList.remove("hidden");
+-}
+-function irParaOperacoes(){
+-  // ativa tab 2 (Operações)
+-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+-  document.querySelectorAll(".tab")[1].classList.add("active");
+-
+-  document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
+-  document.getElementById("ops").classList.remove("hidden");
+-}
+-
+-/* ---------- SALVAR ---------- */
+-function salvar(){
+-  localStorage.setItem("operacoes", JSON.stringify(operacoes));
+-}
+-
+-/* ---------- EXECUTAR ---------- */
+-function executar(){
+-  let v = +document.getElementById("valor").value;
+-  let p = +document.getElementById("percentual").value;
+-  let q = +document.getElementById("quantidade").value;
+-
+-  if(!v || !p || !q){
+-    alert("Preencha todos os campos");
+-    return;
+-  }
+-
+-  let totalAtual = v;
+ 
+-  for(let i=0;i<q;i++){
+-    let ganho = totalAtual * p / 100;
+-    let total = totalAtual + ganho;
+-
+-    operacoes.push({
+-      base: totalAtual,
+-      perc: p,
+-      ganho: ganho,
+-      total: total,
+-      data: new Date().toISOString(),
+-      ok: false
+-    });
+-
+-    totalAtual = total;
+-  }
+-
+-  // Calculadora limpa: apenas resultado final
+-  document.getElementById("preview").innerText =
+-    "Resultado final:\n" + totalAtual.toFixed(2);
+-
+-  salvar();
+-  renderizar();
+-
+-  // ✅ Mostra automaticamente a aba Operações
+-  irParaOperacoes();
+-}
+-
+-/* ---------- RENDER ---------- */
+-function renderizar(){
+-  const lista = document.getElementById("lista");
+-  lista.innerHTML = "";
+-
+-  let hoje = 0, semana = 0, mes = 0, concluidas = 0;
+-  let agora = new Date();
+-
+-  operacoes.forEach((op,i)=>{
+-    let d = new Date(op.data);
+-
+-    if(op.ok){
+-      concluidas++;
+-      hoje += op.ganho;
+-      if((agora - d)/86400000 <= 7) semana += op.ganho;
+-      if(agora.getMonth() === d.getMonth() && agora.getFullYear() === d.getFullYear()) mes += op.ganho;
+-    }
+-
+-    let div = document.createElement("div");
+-    div.className = "operacao";
+-    div.innerHTML = `
+-      <strong>${op.perc}% de ${op.base.toFixed(2)} = ${op.ganho.toFixed(2)}</strong><br>
+-      <small>Total: ${op.total.toFixed(2)}</small><br>
+-      <label>
+-        <input type="checkbox" ${op.ok ? "checked" : ""} onchange="toggle(${i})">
+-        Concluída
+-      </label>
+-      <div class="actions">
+-        <button onclick="editar(${i})">Editar</button>
+-        <button class="del" onclick="excluir(${i})">Excluir</button>
++  <main class="container">
++    <section id="calc" class="tabContent" aria-labelledby="calc-title">
++      <div class="card">
++        <h3 id="calc-title">Nova simulação</h3>
++        <form id="calcForm" class="form-grid">
++          <label>
++            Valor base
++            <input id="valor" type="number" min="0" step="0.01" placeholder="Ex: 50">
++          </label>
++          <label>
++            Percentual (%)
++            <input id="percentual" type="number" min="0" step="0.01" placeholder="Ex: 40">
++          </label>
++          <label>
++            Quantidade de contas
++            <input id="quantidade" type="number" min="1" step="1" placeholder="Ex: 5">
++          </label>
++          <button type="submit">Executar</button>
++        </form>
++        <div id="error" class="error hidden" role="alert"></div>
++        <div id="preview" class="resultado-final"></div>
+       </div>
+-    `;
+-    lista.appendChild(div);
+-  });
++    </section>
+ 
+-  hojeEl.textContent = hoje.toFixed(2);
+-  semanaEl.textContent = semana.toFixed(2);
+-  mesEl.textContent = mes.toFixed(2);
+-  qtdEl.textContent = concluidas;
+-
+-  atualizarGrafico(hoje, semana, mes, concluidas);
+-}
+-
+-/* ---------- AÇÕES ---------- */
+-function toggle(i){
+-  operacoes[i].ok = !operacoes[i].ok;
+-  salvar(); renderizar();
+-}
+-function excluir(i){
+-  if(confirm("Excluir operação?")){
+-    operacoes.splice(i,1);
+-    salvar(); renderizar();
+-  }
+-}
+-function editar(i){
+-  let novo = prompt("Novo percentual:", operacoes[i].perc);
+-  if(!novo) return;
+-
+-  operacoes[i].perc = +novo;
+-  operacoes[i].ganho = operacoes[i].base * (+novo) / 100;
+-  operacoes[i].total = operacoes[i].base + operacoes[i].ganho;
+-
+-  salvar(); renderizar();
+-}
+-
+-/* ---------- GRÁFICO ---------- */
+-function atualizarGrafico(h,s,m,c){
+-  const canvas = document.getElementById("grafico");
+-  if(grafico) grafico.destroy();
+-
+-  grafico = new Chart(canvas, {
+-    type: tipoGrafico,
+-    data: {
+-      labels: ["Hoje", "Semana", "Mês", "Concluídas"],
+-      datasets: [{ data: [h, s, m, c] }]
+-    }
+-  });
+-}
+-function alternarGrafico(){
+-  tipoGrafico = (tipoGrafico === "pie") ? "bar" : "pie";
+-  renderizar();
+-}
+-
+-/* ---------- INICIAL ---------- */
+-renderizar();
+-</script>
+- <script>
+-if ("serviceWorker" in navigator) {
+-  navigator.serviceWorker.register("./service-worker.js");
+-}
+- </script>
++    <section id="ops" class="tabContent hidden" aria-labelledby="ops-title">
++      <div class="card">
++        <h3 id="ops-title">Operações</h3>
++        <div id="lista"></div>
++      </div>
++    </section>
++
++    <section id="resumo" class="tabContent hidden" aria-labelledby="resumo-title">
++      <div class="card">
++        <h3 id="resumo-title">Resumo</h3>
++        <div class="stats">
++          <div class="stat"><strong>Hoje</strong><div id="hoje">R$ 0,00</div></div>
++          <div class="stat"><strong>Semana</strong><div id="semana">R$ 0,00</div></div>
++          <div class="stat"><strong>Mês</strong><div id="mes">R$ 0,00</div></div>
++          <div class="stat"><strong>Concluídas</strong><div id="qtd">0</div></div>
++        </div>
++        <button type="button" class="toggle" onclick="alternarGrafico()">Alternar Pizza / Barras</button>
++        <canvas id="grafico"></canvas>
++      </div>
++    </section>
++  </main>
+ 
++  <footer>
++    <p>Seus dados ficam armazenados localmente neste dispositivo.</p>
++  </footer>
+ </body>
+ </html>
