@@ -3,209 +3,236 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calculadora Percentual Progressiva</title>
+<title>Calculadora Percentual</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 
 <style>
-body {
+:root{
+  --bg:#0b0f14;
+  --card:#161b22;
+  --input:#1e252e;
+  --primary:#2563eb;
+  --success:#16a34a;
+  --danger:#dc2626;
+  --text:#ffffff;
+}
+body{
   margin:0;
-  font-family: Arial, sans-serif;
-  background:#0b0f14;
-  color:#fff;
+  font-family:system-ui, Arial;
+  background:var(--bg);
+  color:var(--text);
 }
-.container {
-  max-width:550px;
+.container{
+  max-width:520px;
   margin:auto;
-  padding:20px;
+  padding:16px;
 }
-h1,h2 { text-align:center; }
-input,button,select {
+.tabs{
+  display:flex;
+  background:#020617;
+}
+.tab{
+  flex:1;
+  padding:12px;
+  text-align:center;
+  cursor:pointer;
+  font-weight:600;
+  color:#94a3b8;
+}
+.tab.active{
+  color:#fff;
+  border-bottom:3px solid var(--primary);
+}
+.card{
+  background:var(--card);
+  padding:16px;
+  border-radius:12px;
+  margin-top:14px;
+}
+input,button{
   width:100%;
   padding:12px;
-  margin:6px 0;
-  border-radius:6px;
+  margin-top:8px;
+  border-radius:8px;
   border:none;
   font-size:15px;
 }
-input,select { background:#1e252e;color:#fff; }
-button { background:#1f8f4a;color:#fff; }
-.card {
-  background:#161b22;
-  padding:15px;
+input{
+  background:var(--input);
+  color:#fff;
+}
+button{
+  background:var(--primary);
+  color:#fff;
+  font-weight:600;
+}
+.operacao{
+  background:var(--input);
+  padding:12px;
   border-radius:10px;
-  margin-top:15px;
+  margin-top:10px;
 }
-.operacao {
-  background:#1e252e;
-  padding:8px;
-  border-radius:6px;
-  margin-top:8px;
-  font-size:14px;
+.operacao small{
+  color:#cbd5f5;
 }
-.operacao-actions {
+.actions{
   display:flex;
   gap:6px;
-  margin-top:6px;
+  margin-top:8px;
 }
-.operacao-actions button {
+.actions button{
   flex:1;
-  background:#2563eb;
 }
-.operacao-actions button.del {
-  background:#dc2626;
-}
-.stats {
+.actions .del{background:var(--danger);}
+.stats{
   display:grid;
   grid-template-columns:1fr 1fr;
   gap:10px;
 }
-.stat {
-  background:#1e252e;
+.stat{
+  background:var(--input);
   padding:10px;
   border-radius:8px;
   text-align:center;
 }
-canvas { margin-top:10px; }
+.hidden{display:none;}
 </style>
 </head>
 
 <body>
+
+<div class="tabs">
+  <div class="tab active" onclick="abrirTab('calc')">🧮 Calculadora</div>
+  <div class="tab" onclick="abrirTab('ops')">📋 Operações</div>
+  <div class="tab" onclick="abrirTab('resumo')">📊 Resumo</div>
+</div>
+
 <div class="container">
 
-<h1>Calculadora % Progressiva</h1>
-
-<div class="card">
-  <input id="valorInicial" type="number" placeholder="Valor inicial">
-  <input id="percentual" type="number" placeholder="Percentual (%)">
-  <input id="quantidade" type="number" placeholder="Quantidade de contas">
-  <button onclick="executarCalculo()">Executar</button>
-</div>
-
-<div class="card">
-  <h2>Filtro</h2>
-  <input id="filtroData" type="date" onchange="renderizar()">
-</div>
-
-<div class="card">
-  <h2>Operações</h2>
-  <div id="listaOperacoes"></div>
-</div>
-
-<div class="card">
-  <h2>Resumo</h2>
-  <div class="stats">
-    <div class="stat"><strong>Hoje</strong><div id="lucroHoje">0</div></div>
-    <div class="stat"><strong>Semana</strong><div id="lucroSemana">0</div></div>
-    <div class="stat"><strong>Mês</strong><div id="lucroMes">0</div></div>
-    <div class="stat"><strong>Concluídas</strong><div id="qtdOperacoes">0</div></div>
+<!-- CALCULADORA -->
+<div id="calc" class="tabContent">
+  <div class="card">
+    <input id="valor" type="number" placeholder="Valor base (ex: 50)">
+    <input id="percentual" type="number" placeholder="Percentual (%) ex: 40">
+    <input id="quantidade" type="number" placeholder="Quantidade de contas">
+    <button onclick="executar()">Executar</button>
   </div>
 </div>
 
-<div class="card">
-  <h2>Gráfico</h2>
-  <button onclick="alternarGrafico()">Alternar Pizza / Barras</button>
-  <canvas id="grafico"></canvas>
+<!-- OPERAÇÕES -->
+<div id="ops" class="tabContent hidden">
+  <div class="card">
+    <h3>Operações Ativas</h3>
+    <div id="lista"></div>
+  </div>
 </div>
 
-<div class="card">
-  <button onclick="exportarPDF()">Exportar PDF</button>
+<!-- RESUMO -->
+<div id="resumo" class="tabContent hidden">
+  <div class="card">
+    <div class="stats">
+      <div class="stat"><strong>Hoje</strong><div id="hoje">0</div></div>
+      <div class="stat"><strong>Semana</strong><div id="semana">0</div></div>
+      <div class="stat"><strong>Mês</strong><div id="mes">0</div></div>
+      <div class="stat"><strong>Concluídas</strong><div id="qtd">0</div></div>
+    </div>
+    <canvas id="grafico"></canvas>
+  </div>
 </div>
 
 </div>
 
 <script>
 let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
-let tipoGrafico = "pie";
 let grafico;
 
-function salvar() {
-  localStorage.setItem("operacoes", JSON.stringify(operacoes));
+function abrirTab(id){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
+  event.target.classList.add("active");
+  document.querySelectorAll(".tabContent").forEach(c=>c.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
 }
 
-function executarCalculo() {
-  let v = +valorInicial.value;
-  let p = +percentual.value;
-  let q = +quantidade.value;
+function salvar(){
+  localStorage.setItem("operacoes",JSON.stringify(operacoes));
+}
+
+function executar(){
+  let v=+valor.value;
+  let p=+percentual.value;
+  let q=+quantidade.value;
   if(!v||!p||!q) return alert("Preencha tudo");
 
   for(let i=0;i<q;i++){
-    let ganho = v*p/100;
+    let ganho=v*p/100;
+    let total=v+ganho;
     operacoes.push({
+      base:v,
+      perc:p,
       ganho,
+      total,
       data:new Date().toISOString(),
-      concluida:false
+      ok:false
     });
-    v+=ganho;
+    v=total;
   }
   salvar(); renderizar();
 }
 
-function renderizar() {
-  listaOperacoes.innerHTML="";
-  let hoje=0, semana=0, mes=0, concluidas=0;
+function renderizar(){
+  lista.innerHTML="";
+  let h=0,s=0,m=0,c=0;
   let agora=new Date();
-  let filtro=filtroData.value;
 
   operacoes.forEach((op,i)=>{
     let d=new Date(op.data);
-    if(filtro && d.toISOString().slice(0,10)!==filtro) return;
-
-    if(op.concluida){
-      concluidas++;
-      hoje+=op.ganho;
-      if((agora-d)/86400000<=7) semana+=op.ganho;
-      if(agora.getMonth()===d.getMonth()) mes+=op.ganho;
+    if(op.ok){
+      c++;
+      h+=op.ganho;
+      if((agora-d)/86400000<=7) s+=op.ganho;
+      if(agora.getMonth()==d.getMonth()) m+=op.ganho;
     }
 
     let div=document.createElement("div");
     div.className="operacao";
     div.innerHTML=`
-      <div>Ganho: ${op.ganho.toFixed(2)}</div>
-      <label><input type="checkbox" ${op.concluida?"checked":""} onchange="toggle(${i})"> Concluída</label>
-      <div class="operacao-actions">
+      <div><strong>${op.perc}% de ${op.base} = ${op.ganho.toFixed(2)}</strong></div>
+      <small>Total: ${op.total.toFixed(2)}</small>
+      <label><input type="checkbox" ${op.ok?"checked":""} onchange="toggle(${i})"> Concluída</label>
+      <div class="actions">
         <button onclick="editar(${i})">Editar</button>
         <button class="del" onclick="excluir(${i})">Excluir</button>
       </div>
     `;
-    listaOperacoes.appendChild(div);
+    lista.appendChild(div);
   });
 
-  lucroHoje.innerText=hoje.toFixed(2);
-  lucroSemana.innerText=semana.toFixed(2);
-  lucroMes.innerText=mes.toFixed(2);
-  qtdOperacoes.innerText=concluidas;
+  hoje.innerText=h.toFixed(2);
+  semana.innerText=s.toFixed(2);
+  mes.innerText=m.toFixed(2);
+  qtd.innerText=c;
 
-  atualizarGrafico(hoje,semana,mes,concluidas);
+  atualizarGrafico(h,s,m,c);
 }
 
-function toggle(i){ operacoes[i].concluida=!operacoes[i].concluida; salvar(); renderizar(); }
-function excluir(i){ if(confirm("Excluir operação?")){ operacoes.splice(i,1); salvar(); renderizar(); } }
+function toggle(i){ operacoes[i].ok=!operacoes[i].ok; salvar(); renderizar(); }
+function excluir(i){ if(confirm("Excluir?")){ operacoes.splice(i,1); salvar(); renderizar(); } }
 function editar(i){
-  let novo=prompt("Novo ganho:",operacoes[i].ganho);
-  if(novo){ operacoes[i].ganho=+novo; salvar(); renderizar(); }
+  let novo=prompt("Novo percentual:",operacoes[i].perc);
+  if(!novo) return;
+  operacoes[i].perc=+novo;
+  operacoes[i].ganho=operacoes[i].base*novo/100;
+  operacoes[i].total=operacoes[i].base+operacoes[i].ganho;
+  salvar(); renderizar();
 }
 
-function atualizarGrafico(h,s,m,o){
+function atualizarGrafico(h,s,m,c){
   if(grafico) grafico.destroy();
-  grafico=new Chart(graficoEl,{
-    type:tipoGrafico,
-    data:{ labels:["Hoje","Semana","Mês","Concluídas"], datasets:[{data:[h,s,m,o]}] }
+  grafico=new Chart(document.getElementById("grafico"),{
+    type:"pie",
+    data:{labels:["Hoje","Semana","Mês","Concluídas"],datasets:[{data:[h,s,m,c]}]}
   });
-}
-function alternarGrafico(){ tipoGrafico=tipoGrafico==="pie"?"bar":"pie"; renderizar(); }
-
-function exportarPDF(){
-  const {jsPDF}=window.jspdf;
-  let pdf=new jsPDF();
-  pdf.text("Relatório de Operações",10,10);
-  let y=20;
-  operacoes.forEach(op=>{
-    pdf.text(`Ganho: ${op.ganho} | Concluída: ${op.concluida}`,10,y);
-    y+=8;
-  });
-  pdf.save("relatorio.pdf");
 }
 
 renderizar();
@@ -213,5 +240,3 @@ renderizar();
 
 </body>
 </html>
-
-
