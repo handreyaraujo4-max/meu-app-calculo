@@ -15,6 +15,7 @@
   --primary:#2563eb;
   --danger:#dc2626;
   --text:#ffffff;
+  --muted:#94a3b8;
 }
 body{
   margin:0;
@@ -28,11 +29,11 @@ body{
 }
 .tab{
   flex:1;
-  padding:12px;
+  padding:14px;
   text-align:center;
   cursor:pointer;
   font-weight:600;
-  color:#94a3b8;
+  color:var(--muted);
 }
 .tab.active{
   color:#fff;
@@ -46,14 +47,14 @@ body{
 .card{
   background:var(--card);
   padding:16px;
-  border-radius:12px;
-  margin-top:14px;
+  border-radius:14px;
+  margin-top:16px;
 }
 input,button{
   width:100%;
-  padding:12px;
-  margin-top:8px;
-  border-radius:8px;
+  padding:14px;
+  margin-top:10px;
+  border-radius:10px;
   border:none;
   font-size:15px;
 }
@@ -61,34 +62,33 @@ input{background:var(--input);color:#fff;}
 button{background:var(--primary);color:#fff;font-weight:600;}
 .operacao{
   background:var(--input);
-  padding:12px;
-  border-radius:10px;
-  margin-top:10px;
+  padding:14px;
+  border-radius:12px;
+  margin-top:12px;
 }
-.operacao small{color:#cbd5f5;}
+.operacao small{color:var(--muted);}
 .actions{
   display:flex;
-  gap:6px;
-  margin-top:8px;
+  gap:8px;
+  margin-top:10px;
 }
 .actions .del{background:var(--danger);}
 .stats{
   display:grid;
   grid-template-columns:1fr 1fr;
-  gap:10px;
+  gap:12px;
 }
 .stat{
   background:var(--input);
-  padding:10px;
-  border-radius:8px;
+  padding:12px;
+  border-radius:10px;
   text-align:center;
 }
 .hidden{display:none;}
-canvas{margin-top:15px;}
-.resultado{
+canvas{margin-top:20px;}
+.toggle{
   margin-top:10px;
-  font-weight:600;
-  text-align:center;
+  background:#334155;
 }
 </style>
 </head>
@@ -110,7 +110,8 @@ canvas{margin-top:15px;}
     <input id="percentual" type="number" placeholder="Percentual (%) ex: 40">
     <input id="quantidade" type="number" placeholder="Quantidade de contas">
     <button onclick="executar()">Executar</button>
-    <div id="preview" class="resultado"></div>
+
+    <div id="preview" style="margin-top:14px;font-weight:600;text-align:center;"></div>
   </div>
 </div>
 
@@ -131,6 +132,8 @@ canvas{margin-top:15px;}
       <div class="stat"><strong>Mês</strong><div id="mes">0</div></div>
       <div class="stat"><strong>Concluídas</strong><div id="qtd">0</div></div>
     </div>
+
+    <button class="toggle" onclick="alternarGrafico()">Alternar Pizza / Barras</button>
     <canvas id="grafico"></canvas>
   </div>
 </div>
@@ -140,6 +143,7 @@ canvas{margin-top:15px;}
 <script>
 let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
 let grafico;
+let tipoGrafico = "pie";
 
 function abrirTab(e,id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
@@ -153,24 +157,22 @@ function salvar(){
 }
 
 function executar(){
-  let v = +valor.value;
-  let p = +percentual.value;
-  let q = +quantidade.value;
+  let v=+valor.value, p=+percentual.value, q=+quantidade.value;
   if(!v||!p||!q) return alert("Preencha tudo");
 
-  let texto = "";
+  let ultimoTexto="";
   for(let i=0;i<q;i++){
-    let ganho = v*p/100;
-    let total = v+ganho;
-    texto += `${p}% de ${v} = ${ganho.toFixed(2)} → Total: ${total.toFixed(2)}<br>`;
+    let ganho=v*p/100;
+    let total=v+ganho;
+    ultimoTexto = `${p}% de ${v} = ${ganho.toFixed(2)} → Total: ${total.toFixed(2)}`;
     operacoes.push({
       base:v, perc:p, ganho, total,
       data:new Date().toISOString(),
       ok:false
     });
-    v = total;
+    v=total;
   }
-  preview.innerHTML = texto;
+  preview.innerText = "Última simulação:\n" + ultimoTexto;
   salvar();
   renderizar();
 }
@@ -191,7 +193,7 @@ function renderizar(){
     let div=document.createElement("div");
     div.className="operacao";
     div.innerHTML=`
-      <strong>${op.perc}% de ${op.base} = ${op.ganho.toFixed(2)}</strong>
+      <strong>${op.perc}% de ${op.base} = ${op.ganho.toFixed(2)}</strong><br>
       <small>Total: ${op.total.toFixed(2)}</small><br>
       <label><input type="checkbox" ${op.ok?"checked":""} onchange="toggle(${i})"> Concluída</label>
       <div class="actions">
@@ -224,7 +226,7 @@ function editar(i){
 function atualizarGrafico(h,s,m,c){
   if(grafico) grafico.destroy();
   grafico=new Chart(document.getElementById("grafico"),{
-    type:"pie",
+    type:tipoGrafico,
     data:{
       labels:["Hoje","Semana","Mês","Concluídas"],
       datasets:[{data:[h,s,m,c]}]
@@ -232,8 +234,16 @@ function atualizarGrafico(h,s,m,c){
   });
 }
 
+function alternarGrafico(){
+  tipoGrafico = tipoGrafico==="pie" ? "bar" : "pie";
+  renderizar();
+}
+
 renderizar();
 </script>
 
 </body>
 </html>
+
+  
+    
