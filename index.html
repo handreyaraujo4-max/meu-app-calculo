@@ -90,6 +90,12 @@ canvas{margin-top:20px;}
   margin-top:10px;
   background:#334155;
 }
+.resultado-final{
+  margin-top:14px;
+  text-align:center;
+  font-size:18px;
+  font-weight:700;
+}
 </style>
 </head>
 
@@ -111,7 +117,8 @@ canvas{margin-top:20px;}
     <input id="quantidade" type="number" placeholder="Quantidade de contas">
     <button onclick="executar()">Executar</button>
 
-    <div id="preview" style="margin-top:14px;font-weight:600;text-align:center;"></div>
+    <!-- AQUI SÓ APARECE O RESULTADO FINAL -->
+    <div id="preview" class="resultado-final"></div>
   </div>
 </div>
 
@@ -145,6 +152,7 @@ let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
 let grafico;
 let tipoGrafico = "pie";
 
+/* ---------- CONTROLE DE ABAS ---------- */
 function abrirTab(e,id){
   document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
   e.target.classList.add("active");
@@ -152,50 +160,73 @@ function abrirTab(e,id){
   document.getElementById(id).classList.remove("hidden");
 }
 
+/* ---------- SALVAR ---------- */
 function salvar(){
   localStorage.setItem("operacoes",JSON.stringify(operacoes));
 }
 
+/* ---------- EXECUTAR CÁLCULO ---------- */
 function executar(){
-  let v=+valor.value, p=+percentual.value, q=+quantidade.value;
-  if(!v||!p||!q) return alert("Preencha tudo");
+  let v = +valor.value;
+  let p = +percentual.value;
+  let q = +quantidade.value;
 
-  let ultimoTexto="";
-  for(let i=0;i<q;i++){
-    let ganho=v*p/100;
-    let total=v+ganho;
-    ultimoTexto = `${p}% de ${v} = ${ganho.toFixed(2)} → Total: ${total.toFixed(2)}`;
-    operacoes.push({
-      base:v, perc:p, ganho, total,
-      data:new Date().toISOString(),
-      ok:false
-    });
-    v=total;
+  if(!v || !p || !q){
+    alert("Preencha todos os campos");
+    return;
   }
-  preview.innerText = "Última simulação:\n" + ultimoTexto;
+
+  let totalAtual = v;
+
+  for(let i = 0; i < q; i++){
+    let ganho = totalAtual * p / 100;
+    let total = totalAtual + ganho;
+
+    operacoes.push({
+      base: totalAtual,
+      perc: p,
+      ganho: ganho,
+      total: total,
+      data: new Date().toISOString(),
+      ok: false
+    });
+
+    totalAtual = total;
+  }
+
+  // CALCULADORA MOSTRA APENAS O RESULTADO FINAL
+  preview.innerText = "Resultado final: " + totalAtual.toFixed(2);
+
   salvar();
   renderizar();
 }
 
+/* ---------- RENDERIZAR OPERAÇÕES E RESUMO ---------- */
 function renderizar(){
-  lista.innerHTML="";
-  let h=0,s=0,m=0,c=0;
-  let agora=new Date();
+  lista.innerHTML = "";
+
+  let hoje = 0, semana = 0, mes = 0, concluidas = 0;
+  let agora = new Date();
 
   operacoes.forEach((op,i)=>{
-    let d=new Date(op.data);
+    let d = new Date(op.data);
+
     if(op.ok){
-      c++; h+=op.ganho;
-      if((agora-d)/86400000<=7) s+=op.ganho;
-      if(agora.getMonth()==d.getMonth()) m+=op.ganho;
+      concluidas++;
+      hoje += op.ganho;
+      if((agora - d) / 86400000 <= 7) semana += op.ganho;
+      if(agora.getMonth() === d.getMonth()) mes += op.ganho;
     }
 
-    let div=document.createElement("div");
-    div.className="operacao";
-    div.innerHTML=`
-      <strong>${op.perc}% de ${op.base} = ${op.ganho.toFixed(2)}</strong><br>
+    let div = document.createElement("div");
+    div.className = "operacao";
+    div.innerHTML = `
+      <strong>${op.perc}% de ${op.base.toFixed(2)} = ${op.ganho.toFixed(2)}</strong><br>
       <small>Total: ${op.total.toFixed(2)}</small><br>
-      <label><input type="checkbox" ${op.ok?"checked":""} onchange="toggle(${i})"> Concluída</label>
+      <label>
+        <input type="checkbox" ${op.ok ? "checked" : ""} onchange="toggle(${i})">
+        Concluída
+      </label>
       <div class="actions">
         <button onclick="editar(${i})">Editar</button>
         <button class="del" onclick="excluir(${i})">Excluir</button>
@@ -204,46 +235,62 @@ function renderizar(){
     lista.appendChild(div);
   });
 
-  hoje.innerText=h.toFixed(2);
-  semana.innerText=s.toFixed(2);
-  mes.innerText=m.toFixed(2);
-  qtd.innerText=c;
+  hojeEl.textContent = hoje.toFixed(2);
+  semanaEl.textContent = semana.toFixed(2);
+  mesEl.textContent = mes.toFixed(2);
+  qtdEl.textContent = concluidas;
 
-  atualizarGrafico(h,s,m,c);
+  atualizarGrafico(hoje, semana, mes, concluidas);
 }
 
-function toggle(i){ operacoes[i].ok=!operacoes[i].ok; salvar(); renderizar(); }
-function excluir(i){ if(confirm("Excluir?")){ operacoes.splice(i,1); salvar(); renderizar(); } }
+/* ---------- AÇÕES ---------- */
+function toggle(i){
+  operacoes[i].ok = !operacoes[i].ok;
+  salvar();
+  renderizar();
+}
+function excluir(i){
+  if(confirm("Excluir operação?")){
+    operacoes.splice(i,1);
+    salvar();
+    renderizar();
+  }
+}
 function editar(i){
-  let novo=prompt("Novo percentual:",operacoes[i].perc);
+  let novo = prompt("Novo percentual:", operacoes[i].perc);
   if(!novo) return;
-  operacoes[i].perc=+novo;
-  operacoes[i].ganho=operacoes[i].base*novo/100;
-  operacoes[i].total=operacoes[i].base+operacoes[i].ganho;
-  salvar(); renderizar();
+  operacoes[i].perc = +novo;
+  operacoes[i].ganho = operacoes[i].base * novo / 100;
+  operacoes[i].total = operacoes[i].base + operacoes[i].ganho;
+  salvar();
+  renderizar();
 }
 
+/* ---------- GRÁFICO ---------- */
 function atualizarGrafico(h,s,m,c){
   if(grafico) grafico.destroy();
-  grafico=new Chart(document.getElementById("grafico"),{
-    type:tipoGrafico,
+  grafico = new Chart(document.getElementById("grafico"),{
+    type: tipoGrafico,
     data:{
       labels:["Hoje","Semana","Mês","Concluídas"],
       datasets:[{data:[h,s,m,c]}]
     }
   });
 }
-
 function alternarGrafico(){
-  tipoGrafico = tipoGrafico==="pie" ? "bar" : "pie";
+  tipoGrafico = tipoGrafico === "pie" ? "bar" : "pie";
   renderizar();
 }
 
+/* ---------- MAPEAR ELEMENTOS ---------- */
+const hojeEl = document.getElementById("hoje");
+const semanaEl = document.getElementById("semana");
+const mesEl = document.getElementById("mes");
+const qtdEl = document.getElementById("qtd");
+
+/* ---------- INICIAL ---------- */
 renderizar();
 </script>
 
 </body>
 </html>
-
-  
-    
