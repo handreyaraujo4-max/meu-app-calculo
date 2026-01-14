@@ -1,104 +1,217 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>App Teste Login</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#020617">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora Percentual Progressiva</title>
 
-  <style>
-    body {
-      background:#020617;
-      color:#fff;
-      font-family: Arial, sans-serif;
-      margin:0;
-      padding:20px;
-    }
-    input, button {
-      width:100%;
-      padding:12px;
-      margin:8px 0;
-      border-radius:6px;
-      border:none;
-      font-size:16px;
-    }
-    button { background:#22c55e; font-weight:bold; }
-    #app { display:none; }
-  </style>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<style>
+body {
+  margin:0;
+  font-family: Arial, sans-serif;
+  background:#0b0f14;
+  color:#fff;
+}
+.container {
+  max-width:550px;
+  margin:auto;
+  padding:20px;
+}
+h1,h2 { text-align:center; }
+input,button,select {
+  width:100%;
+  padding:12px;
+  margin:6px 0;
+  border-radius:6px;
+  border:none;
+  font-size:15px;
+}
+input,select { background:#1e252e;color:#fff; }
+button { background:#1f8f4a;color:#fff; }
+.card {
+  background:#161b22;
+  padding:15px;
+  border-radius:10px;
+  margin-top:15px;
+}
+.operacao {
+  background:#1e252e;
+  padding:8px;
+  border-radius:6px;
+  margin-top:8px;
+  font-size:14px;
+}
+.operacao-actions {
+  display:flex;
+  gap:6px;
+  margin-top:6px;
+}
+.operacao-actions button {
+  flex:1;
+  background:#2563eb;
+}
+.operacao-actions button.del {
+  background:#dc2626;
+}
+.stats {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.stat {
+  background:#1e252e;
+  padding:10px;
+  border-radius:8px;
+  text-align:center;
+}
+canvas { margin-top:10px; }
+</style>
 </head>
 
 <body>
+<div class="container">
 
-<div id="login">
-  <h2>Login</h2>
-  <input id="email" placeholder="Email">
-  <input id="senha" type="password" placeholder="Senha">
-  <button type="button" onclick="loginEmail()">Entrar</button>
-  <button type="button" onclick="criarConta()">Criar conta</button>
-  <button type="button" onclick="loginGoogle()">Entrar com Google</button>
+<h1>Calculadora % Progressiva</h1>
+
+<div class="card">
+  <input id="valorInicial" type="number" placeholder="Valor inicial">
+  <input id="percentual" type="number" placeholder="Percentual (%)">
+  <input id="quantidade" type="number" placeholder="Quantidade de contas">
+  <button onclick="executarCalculo()">Executar</button>
 </div>
 
-<div id="app">
-  <h2>APP</h2>
-  <p>Você está logado ✅</p>
-  <button type="button" onclick="logout()">Sair</button>
+<div class="card">
+  <h2>Filtro</h2>
+  <input id="filtroData" type="date" onchange="renderizar()">
 </div>
 
-<script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import {
-    getAuth,
-    GoogleAuthProvider,
-    signInWithPopup,
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut
-  } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+<div class="card">
+  <h2>Operações</h2>
+  <div id="listaOperacoes"></div>
+</div>
 
-  const firebaseConfig = {
-    apiKey: "AIzaSyBOvbrC2qReZaNawk4MG17cKjOUlPk8u2g",
-    authDomain: "calculadora-app-926cf.firebaseapp.com",
-    projectId: "calculadora-app-926cf",
-  };
+<div class="card">
+  <h2>Resumo</h2>
+  <div class="stats">
+    <div class="stat"><strong>Hoje</strong><div id="lucroHoje">0</div></div>
+    <div class="stat"><strong>Semana</strong><div id="lucroSemana">0</div></div>
+    <div class="stat"><strong>Mês</strong><div id="lucroMes">0</div></div>
+    <div class="stat"><strong>Concluídas</strong><div id="qtdOperacoes">0</div></div>
+  </div>
+</div>
 
-  const appFirebase = initializeApp(firebaseConfig);
-  const auth = getAuth(appFirebase);
+<div class="card">
+  <h2>Gráfico</h2>
+  <button onclick="alternarGrafico()">Alternar Pizza / Barras</button>
+  <canvas id="grafico"></canvas>
+</div>
 
-  const loginDiv = document.getElementById("login");
-  const appDiv = document.getElementById("app");
-  const email = document.getElementById("email");
-  const senha = document.getElementById("senha");
+<div class="card">
+  <button onclick="exportarPDF()">Exportar PDF</button>
+</div>
 
-  window.loginGoogle = () => {
-    const provider = new GoogleAuthProvider();
-    signInWithPopup(auth, provider);
-  };
+</div>
 
-  window.loginEmail = () => {
-    signInWithEmailAndPassword(auth, email.value, senha.value);
-  };
+<script>
+let operacoes = JSON.parse(localStorage.getItem("operacoes")) || [];
+let tipoGrafico = "pie";
+let grafico;
 
-  window.criarConta = () => {
-    createUserWithEmailAndPassword(auth, email.value, senha.value);
-  };
+function salvar() {
+  localStorage.setItem("operacoes", JSON.stringify(operacoes));
+}
 
-  window.logout = () => {
-    signOut(auth);
-  };
+function executarCalculo() {
+  let v = +valorInicial.value;
+  let p = +percentual.value;
+  let q = +quantidade.value;
+  if(!v||!p||!q) return alert("Preencha tudo");
 
-  // ⭐ ISSO É O QUE ESTAVA FALTANDO ⭐
-  onAuthStateChanged(auth, (user) => {
-    if (user) {
-      loginDiv.style.display = "none";
-      appDiv.style.display = "block";
-    } else {
-      loginDiv.style.display = "block";
-      appDiv.style.display = "none";
+  for(let i=0;i<q;i++){
+    let ganho = v*p/100;
+    operacoes.push({
+      ganho,
+      data:new Date().toISOString(),
+      concluida:false
+    });
+    v+=ganho;
+  }
+  salvar(); renderizar();
+}
+
+function renderizar() {
+  listaOperacoes.innerHTML="";
+  let hoje=0, semana=0, mes=0, concluidas=0;
+  let agora=new Date();
+  let filtro=filtroData.value;
+
+  operacoes.forEach((op,i)=>{
+    let d=new Date(op.data);
+    if(filtro && d.toISOString().slice(0,10)!==filtro) return;
+
+    if(op.concluida){
+      concluidas++;
+      hoje+=op.ganho;
+      if((agora-d)/86400000<=7) semana+=op.ganho;
+      if(agora.getMonth()===d.getMonth()) mes+=op.ganho;
     }
+
+    let div=document.createElement("div");
+    div.className="operacao";
+    div.innerHTML=`
+      <div>Ganho: ${op.ganho.toFixed(2)}</div>
+      <label><input type="checkbox" ${op.concluida?"checked":""} onchange="toggle(${i})"> Concluída</label>
+      <div class="operacao-actions">
+        <button onclick="editar(${i})">Editar</button>
+        <button class="del" onclick="excluir(${i})">Excluir</button>
+      </div>
+    `;
+    listaOperacoes.appendChild(div);
   });
+
+  lucroHoje.innerText=hoje.toFixed(2);
+  lucroSemana.innerText=semana.toFixed(2);
+  lucroMes.innerText=mes.toFixed(2);
+  qtdOperacoes.innerText=concluidas;
+
+  atualizarGrafico(hoje,semana,mes,concluidas);
+}
+
+function toggle(i){ operacoes[i].concluida=!operacoes[i].concluida; salvar(); renderizar(); }
+function excluir(i){ if(confirm("Excluir operação?")){ operacoes.splice(i,1); salvar(); renderizar(); } }
+function editar(i){
+  let novo=prompt("Novo ganho:",operacoes[i].ganho);
+  if(novo){ operacoes[i].ganho=+novo; salvar(); renderizar(); }
+}
+
+function atualizarGrafico(h,s,m,o){
+  if(grafico) grafico.destroy();
+  grafico=new Chart(graficoEl,{
+    type:tipoGrafico,
+    data:{ labels:["Hoje","Semana","Mês","Concluídas"], datasets:[{data:[h,s,m,o]}] }
+  });
+}
+function alternarGrafico(){ tipoGrafico=tipoGrafico==="pie"?"bar":"pie"; renderizar(); }
+
+function exportarPDF(){
+  const {jsPDF}=window.jspdf;
+  let pdf=new jsPDF();
+  pdf.text("Relatório de Operações",10,10);
+  let y=20;
+  operacoes.forEach(op=>{
+    pdf.text(`Ganho: ${op.ganho} | Concluída: ${op.concluida}`,10,y);
+    y+=8;
+  });
+  pdf.save("relatorio.pdf");
+}
+
+renderizar();
 </script>
 
 </body>
 </html>
+
 
